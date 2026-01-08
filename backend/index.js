@@ -15,12 +15,26 @@ import { normalLimiter } from "./middlewares/rateLimiting.js";
 
 const app = express();
 const port = process.env.PORT || 4000;
+
+// ✅ CORS لازم يكون أول حاجة بعد إنشاء app
+app.use(cors({
+  origin: [
+    "http://localhost:5173",                 // Vite local
+    "https://doctors-three-eta.vercel.app"   // Frontend على Vercel
+  ],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
+}));
+
+app.options("*", cors()); // 👈 مهم جدًا لـ preflight
+
 connectDB();
 connectCloudinary();
 
+
 // middelwares
 app.use(express.json());
-app.use(cors());
 //app.use(limiter);
 app.use(helmet());
 app.use(sanitizeMiddleware);
