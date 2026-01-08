@@ -20,14 +20,14 @@ const port = process.env.PORT || 4000;
 app.use(cors({
   origin: [
     "http://localhost:5173",                 // Vite local
-    "https://doctors-taupe.vercel.app"   // Frontend على Vercel
+    "https://slamtak.vercel.app"   // Frontend على Vercel
   ],
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
 }));
 
-app.options("*", cors()); // 👈 مهم جدًا لـ preflight
+// app.options("*", cors()); // 👈 مهم جدًا لـ preflight
 
 connectDB();
 connectCloudinary();
