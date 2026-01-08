@@ -20,7 +20,7 @@ const port = process.env.PORT || 4000;
 app.use(cors({
   origin: [
     "http://localhost:5173",                 // Vite local
-    "https://doctors-three-eta.vercel.app"   // Frontend على Vercel
+    "https://doctors-taupe.vercel.app"   // Frontend على Vercel
   ],
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
