@@ -51,7 +51,6 @@
 //   console.log(`Server starting in port ${port}`);
 // });
 
-
 import express from "express";
 import cors from "cors";
 import "dotenv/config";
@@ -63,11 +62,9 @@ import { sanitizeMiddleware } from "./middlewares/sanitize.js";
 import adminRouter from "./routers/adminRouter.js";
 import doctorRouter from "./routers/doctorRouter.js";
 import userRouter from "./routers/userRouter.js";
-import { normalLimiter } from "./middlewares/rateLimiting.js";
 
 const app = express();
 
-// ✅ Middlewares
 app.use(cors({
   origin: [
     "http://localhost:5173",
@@ -80,18 +77,18 @@ app.use(express.json());
 app.use(helmet());
 app.use(sanitizeMiddleware);
 
+// ✅ اتصال مرة واحدة
+connectDB();
+connectCloudinary();
 
-  await connectDB();
-  await connectCloudinary();
-
-
-// ✅ Routes
-app.get("/api/test", async (req, res) => {
+// test route
+app.get("/api/test", (req, res) => {
   res.json({ ok: true });
 });
+
+// routes
 app.use("/api/admin", adminRouter);
-app.use("/api/doctor", normalLimiter, doctorRouter);
+app.use("/api/doctor", doctorRouter);
 app.use("/api/user", userRouter);
 
-// ❌ لا listen
 export default app;
