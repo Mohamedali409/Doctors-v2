@@ -88,6 +88,9 @@ app.use(async (req, res, next) => {
 });
 
 // ✅ Routes
+app.get("/api/test", async (req, res) => {
+  res.json({ ok: true });
+});
 app.use("/api/admin", adminRouter);
 app.use("/api/doctor", normalLimiter, doctorRouter);
 app.use("/api/user", userRouter);
