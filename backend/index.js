@@ -80,12 +80,10 @@ app.use(express.json());
 app.use(helmet());
 app.use(sanitizeMiddleware);
 
-// ✅ مهم جدًا: الاتصال يكون قبل أي request
-app.use(async (req, res, next) => {
+
   await connectDB();
   await connectCloudinary();
-  next();
-});
+
 
 // ✅ Routes
 app.get("/api/test", async (req, res) => {
