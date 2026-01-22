@@ -81,6 +81,10 @@ app.use(sanitizeMiddleware);
 connectDB();
 connectCloudinary();
 
+app.get("/", (req, res) => {
+  res.send("Srever is working");
+});
+
 // test route
 app.get("/api/test", (req, res) => {
   res.json({ ok: true });
