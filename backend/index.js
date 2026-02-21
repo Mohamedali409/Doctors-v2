@@ -16,18 +16,18 @@
 // const app = express();
 // const port = process.env.PORT || 4000;
 
-// // ✅ CORS لازم يكون أول حاجة بعد إنشاء app
+
 // app.use(cors({
 //   origin: [
-//     "http://localhost:5173",                 // Vite local
-//     "https://slamtak.vercel.app"   // Frontend على Vercel
+//     "http://localhost:5173",                 
+//     "https://slamtak.vercel.app"  
 //   ],
 //   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 //   allowedHeaders: ["Content-Type", "Authorization"],
 //   credentials: true,
 // }));
 
-// // app.options("*", cors()); // 👈 مهم جدًا لـ preflight
+// // app.options("*", cors()); 
 
 // connectDB();
 // connectCloudinary();
@@ -78,7 +78,6 @@ app.use(express.json());
 app.use(helmet());
 app.use(sanitizeMiddleware);
 
-// ✅ اتصال مرة واحدة
 connectDB();
 connectCloudinary();
 
