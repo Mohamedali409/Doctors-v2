@@ -64,6 +64,7 @@ import doctorRouter from "./routers/doctorRouter.js";
 import userRouter from "./routers/userRouter.js";
 
 const app = express();
+const port = process.env.PORT || 4000;
 
 app.use(cors({
   origin: [
