@@ -95,4 +95,8 @@ app.use("/api/admin", adminRouter);
 app.use("/api/doctor", doctorRouter);
 app.use("/api/user", userRouter);
 
-export default app;
+app.listen(port, () => {
+  console.log(`Server starting in port ${port}`);
+});
+
+// export default app;
