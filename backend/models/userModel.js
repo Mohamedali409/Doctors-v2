@@ -1,13 +1,29 @@
 import mongoose from "mongoose";
+import bcrypt from "bcrypt";
 
 const userSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
+  name: { type: String, required: [true, "User name is required"] },
+  email: {
+    type: String,
+    required: [true, "User emil is required"],
+    unique: [true, "User email is used before"],
+  },
   password: {
     type: String,
     required: function () {
       return !this.googleId;
     },
+  },
+  confirmPassword: {
+    type: String,
+    required: [true, "Confirm Password is required"],
+    validate: {
+      validator: function (val) {
+        return val === this.password;
+      },
+      message: "Password are not match",
+    },
+    select: false,
   },
   googleId: { type: String },
   image: {
@@ -26,8 +42,23 @@ const userSchema = new mongoose.Schema({
   dob: { type: String, default: "Not selected" },
   phone: { type: String, default: "00000000000" },
   nationality: { type: String, default: "Egypt" },
-  nationaliId: { type: Number, unique: true, sparse: true },
+  nationaliId: {
+    type: Number,
+    unique: [true, "national id is used before"],
+    sparse: true,
+  },
 });
+
+userSchema.pre("save", async function (next) {
+  if (!this.isModified("password")) return next();
+  this.password = await bcrypt.hash(this.password, 10);
+  this.confirmPassword = undefined;
+  next();
+});
+
+userSchema.methods.comparePassword = async function (passwordUserEnter) {
+  return await bcrypt.compare(this.password, passwordUserEnter);
+};
 
 const userModel = mongoose.models.user || mongoose.model("user", userSchema);
 

@@ -7,16 +7,27 @@ import userModel from "../models/userModel.js";
 import consultationModel from "../models/consultationModel.js";
 import { sendMedicalReportEmail } from "../services/mailService.js";
 import client from "../config/redisClient.js";
+import AppError from "../utils/AppErrors.js";
 
-const changeAvalibality = async (req, res) => {
+const changeAvalibality = async (req, res, next) => {
   try {
     const { docId } = req.body;
 
     const docData = await doctorModel.findById(docId);
+    if (!docData) {
+      return next(new AppError("Doctor is not found", 404));
+    }
     await doctorModel.findByIdAndUpdate(docData, {
       avalibale: !docData.avalibale,
     });
-    res.json({ success: true, message: "تم تحديث الحاله بنجاح" });
+
+    await docData.save();
+
+    res.json({
+      success: true,
+      message: "تم تحديث الحاله بنجاح",
+      avalibale: docData.avalibale,
+    });
   } catch (error) {
     console.log(error);
     res.json({ success: fales, message: error.message });
@@ -93,7 +104,7 @@ const doctorAppointments = async (req, res) => {
     await client.setEx(
       `doctor-appointments-${docId}`,
       120,
-      JSON.stringify(appointments)
+      JSON.stringify(appointments),
     );
 
     res.json({ success: true, appointments });
@@ -117,7 +128,7 @@ const appointmentCompleted = async (req, res) => {
       let slots_booked = doctorData.slots_booked;
 
       slots_booked[slotDate] = slots_booked[slotDate].filter(
-        (e) => e !== slotTime
+        (e) => e !== slotTime,
       );
 
       await doctorModel.findByIdAndUpdate(docId, { slots_booked });
@@ -150,7 +161,7 @@ const appointmentCancel = async (req, res) => {
       let slots_booked = doctorData.slots_booked;
 
       slots_booked[slotDate] = slots_booked[slotDate].filter(
-        (e) => e !== slotTime
+        (e) => e !== slotTime,
       );
 
       await doctorModel.findByIdAndUpdate(docId, { slots_booked });
@@ -244,7 +255,7 @@ const doctorDashbord = async (req, res) => {
     await client.setEx(
       `docotr-dachbord-${docId}`,
       120,
-      JSON.stringify(dashData)
+      JSON.stringify(dashData),
     );
 
     res.json({ success: true, dashData });
@@ -448,7 +459,7 @@ const getUserReportWithDoctor = async (req, res) => {
     const docId = req.docId;
 
     const chachedUserReportsWithDoctor = await client.get(
-      `user-report-${userId}-${docId}`
+      `user-report-${userId}-${docId}`,
     );
 
     if (chachedUserReportsWithDoctor) {
@@ -470,7 +481,7 @@ const getUserReportWithDoctor = async (req, res) => {
     await client.setEx(
       `user-report-${userId}-${docId}`,
       120,
-      JSON.stringify(userReport)
+      JSON.stringify(userReport),
     );
     res.status(200).json({ success: true, userReport });
   } catch (error) {
@@ -524,7 +535,7 @@ const searchUser = async (req, res) => {
 
     const users = appointments.map((a) => a.userData);
     const uniqueUsers = Array.from(
-      new Map(users.map((u) => [u._id || u.id || u.phone, u])).values()
+      new Map(users.map((u) => [u._id || u.id || u.phone, u])).values(),
     );
 
     res.json({ success: true, users: uniqueUsers });
@@ -559,7 +570,7 @@ const useDetails = async (req, res) => {
     await client.setEx(
       `user-details-${userId}`,
       120,
-      JSON.stringify(userDetails)
+      JSON.stringify(userDetails),
     );
 
     res.json({ success: true, userDetails });
@@ -699,7 +710,7 @@ const doctorConsultation = async (req, res) => {
     const docId = req.docId;
 
     const chachedConsultation = await client.get(
-      `doctor-consultation-${docId}`
+      `doctor-consultation-${docId}`,
     );
     if (chachedConsultation) {
       console.log("الاستشارة من الكاش");
@@ -718,7 +729,7 @@ const doctorConsultation = async (req, res) => {
     await client.setEx(
       `doctor-consultation-${docId}`,
       120,
-      JSON.stringify(consualtations)
+      JSON.stringify(consualtations),
     );
 
     res.json({ success: true, consualtations });

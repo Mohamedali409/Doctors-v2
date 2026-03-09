@@ -78,7 +78,9 @@ const loginUser = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (isMatch) {
-      const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
+      const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+        expiresIn: "15m",
+      });
       res.json({ success: true, token });
     } else {
       res.json({
@@ -123,7 +125,9 @@ const googleLogin = async (req, res) => {
     }
 
     // 3- generate JWT
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "15m",
+    });
 
     res.json({
       success: true,
@@ -279,7 +283,7 @@ const bookAppointment = async (req, res) => {
       userData.email,
       userData.name,
       appointmentData,
-      docData
+      docData,
     );
 
     // save new slot in doctor data (docData)
@@ -298,7 +302,7 @@ const listAppointment = async (req, res) => {
     const userId = req.body?.userId || req.userId;
 
     const chachedUserListAppointment = await client.get(
-      `user-appointment-${userId}`
+      `user-appointment-${userId}`,
     );
     if (chachedUserListAppointment) {
       return res.json({
@@ -318,7 +322,7 @@ const listAppointment = async (req, res) => {
     await client.setEx(
       `user-appointment-${userId}`,
       240,
-      JSON.stringify(appointments)
+      JSON.stringify(appointments),
     );
     res.json({ success: true, appointments });
   } catch (error) {
@@ -351,7 +355,7 @@ const cancelAppointment = async (req, res) => {
     let slots_booked = doctorData.slots_booked;
 
     slots_booked[slotDate] = slots_booked[slotDate].filter(
-      (e) => e !== slotTime
+      (e) => e !== slotTime,
     );
 
     await doctorModel.findByIdAndUpdate(docId, { slots_booked });
@@ -412,7 +416,7 @@ const useDetails = async (req, res) => {
     await client.setEx(
       `user-detals-${userId}`,
       240,
-      JSON.stringify(userDetails)
+      JSON.stringify(userDetails),
     );
 
     res.json({ success: true, userDetails });
@@ -429,7 +433,7 @@ const getConsaltation = async (req, res) => {
     const userId = req.userId;
 
     const chachedUserConsultation = await client.get(
-      `user-consultation-${userId}-${appointmentId}-${docId}`
+      `user-consultation-${userId}-${appointmentId}-${docId}`,
     );
     if (chachedUserConsultation) {
       return res.json({
@@ -453,7 +457,7 @@ const getConsaltation = async (req, res) => {
     await client.setEx(
       `user-consultation-${userId}-${appointmentId}-${docId}`,
       240,
-      JSON.stringify(consaltaionData)
+      JSON.stringify(consaltaionData),
     );
 
     res.json({ success: true, consaltaionData });
@@ -468,7 +472,7 @@ const getAllConsaltation = async (req, res) => {
   try {
     const userId = req.userId;
     const chachedAllUserConsultation = await client.get(
-      `user-all-consultation-${userId}`
+      `user-all-consultation-${userId}`,
     );
     if (chachedAllUserConsultation) {
       return res.json({
@@ -487,7 +491,7 @@ const getAllConsaltation = async (req, res) => {
     await client.setEx(
       `user-all-consultation-${userId}`,
       240,
-      JSON.stringify(consaltationData)
+      JSON.stringify(consaltationData),
     );
 
     res.json({ success: true, consaltationData });
@@ -581,7 +585,7 @@ const updateConsaltationTime = async (req, res) => {
       docData,
       consultDay,
       consultTime,
-      consaltation.notes
+      consaltation.notes,
     );
   } catch (error) {
     console.log(error);
@@ -610,7 +614,7 @@ const cancelConsultation = async (req, res) => {
       let slots_booked = doctorData.slots_booked;
 
       slots_booked[slotDate] = slots_booked[slotDate].filter(
-        (e) => e !== slotTime
+        (e) => e !== slotTime,
       );
 
       await doctorModel.findByIdAndUpdate(docId, { slots_booked });

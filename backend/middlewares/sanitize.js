@@ -1,13 +1,12 @@
 import xss from "xss";
 
-// دالة تساعد على تنظيف أي object (body, query, params)
 const sanitizeObject = (obj) => {
   if (!obj) return;
   Object.keys(obj).forEach((key) => {
     if (typeof obj[key] === "string") {
-      obj[key] = xss(obj[key]); // تنظيف النصوص
+      obj[key] = xss(obj[key]);
     } else if (typeof obj[key] === "object") {
-      sanitizeObject(obj[key]); // recursive للتعمق
+      sanitizeObject(obj[key]);
     }
   });
 };

@@ -131,7 +131,7 @@ const doctorList = async (req, res) => {
     res.json({ success: true, doctors });
   } catch (error) {
     console.log(error);
-    res.json({ success: fales, message: error.message });
+    res.json({ success: false, message: error.message });
   }
 };
 
@@ -164,7 +164,7 @@ const cancelAppointment = async (req, res) => {
     let slots_booked = doctorData.slots_booked;
 
     slots_booked[slotDate] = slots_booked[slotDate].filter(
-      (e) => e !== slotTime
+      (e) => e !== slotTime,
     );
 
     await doctorModel.findByIdAndUpdate(docId, { slots_booked });
@@ -313,7 +313,9 @@ const searchUserFromAdmin = async (req, res) => {
 
     const users = appointments.map((a) => a.userData);
     const uniqueUsers = Array.from(
-      new Map(users.map((u) => [u._id || u.nationaliId || u.phone, u])).values()
+      new Map(
+        users.map((u) => [u._id || u.nationaliId || u.phone, u]),
+      ).values(),
     );
 
     res.json({ success: true, users: uniqueUsers });
@@ -386,7 +388,10 @@ const getAllUserConsultationToAdmin = async (req, res) => {
     const consultation = await consultationModel.find({ userId });
 
     if (!consultation) {
-      return res.json({ success: false, message: error.message });
+      return res.json({
+        success: false,
+        message: "this user don't have any consultations ",
+      });
     }
 
     res.json({ success: true, consultation });
@@ -410,13 +415,13 @@ const cancelConsultation = async (req, res) => {
       await consultationModel.findByIdAndUpdate(consultationId, {
         cancelled: true,
       });
-      res.json({
+      return res.json({
         success: true,
         message: `تم ألغاء 
         استشارة الماريض ${consultation.userData.name}`,
       });
     } else {
-      res.json({ success: false, message: "لم تنجح العملية" });
+      return res.json({ success: false, message: "لم تنجح العملية" });
     }
 
     // releasing doctor slot
@@ -428,7 +433,7 @@ const cancelConsultation = async (req, res) => {
     let slots_booked = doctorData.slots_booked;
 
     slots_booked[consultDay] = slots_booked[consultDay].filter(
-      (e) => e !== consultTime
+      (e) => e !== consultTime,
     );
 
     await doctorModel.findByIdAndUpdate(docId, { slots_booked });
@@ -451,13 +456,13 @@ const completedConsultation = async (req, res) => {
       await consultationModel.findByIdAndUpdate(consultationId, {
         isCompleted: true,
       });
-      res.json({
+      return res.json({
         success: true,
         message: `تم ألغاء 
         استشارة الماريض ${consultation.userData.name}`,
       });
     } else {
-      res.json({ success: false, message: "لم تنجح العملية" });
+      return res.json({ success: false, message: "لم تنجح العملية" });
     }
 
     // releasing doctor slot
@@ -469,7 +474,7 @@ const completedConsultation = async (req, res) => {
     let slots_booked = doctorData.slots_booked;
 
     slots_booked[consultDay] = slots_booked[consultDay].filter(
-      (e) => e !== consultTime
+      (e) => e !== consultTime,
     );
 
     await doctorModel.findByIdAndUpdate(docId, { slots_booked });

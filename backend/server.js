@@ -11,6 +11,7 @@ import adminRouter from "./routers/adminRouter.js";
 import doctorRouter from "./routers/doctorRouter.js";
 import userRouter from "./routers/userRouter.js";
 import { normalLimiter } from "./middlewares/rateLimiting.js";
+import { errorHandling } from "./middlewares/errorHandling.js";
 //import client from "./config/redisClient.js";
 
 const app = express();
@@ -32,6 +33,8 @@ app.use("/api/admin", adminRouter);
 app.use("/api/doctor", normalLimiter, doctorRouter);
 
 app.use("/api/user", userRouter);
+
+app.use(errorHandling);
 
 app.listen(port, () => {
   console.log(`Server starting in port ${port}`);
