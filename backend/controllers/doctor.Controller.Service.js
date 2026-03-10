@@ -11,25 +11,18 @@ import AppError from "../utils/AppErrors.js";
 import asyncHandler from "../utils/asyncHandler.js";
 
 import * as doctorService from "../services/doctorService.js";
+import * as appointmentService from "../services/appointmentService.js";
+import * as reportService from "../services/reportService.js";
 
 const changeAvailable = asyncHandler(async (req, res, next) => {
   const { docId } = req.body;
 
-  const docData = await doctorModel.findById(docId);
-  if (!docData) {
-    return next(new AppError("Doctor is not found", 404));
-  }
-  await doctorModel.findByIdAndUpdate(docId, {
-    avalibale: !docData.avalibale,
-  });
-
-  await client.del("doctors");
-  await docData.save();
+  const doctor = await doctorService.changeAvailability(docId);
 
   res.status(200).json({
     success: true,
     message: "تم تحديث الحاله بنجاح",
-    avalibale: docData.avalibale,
+    avalibale: doctor.avalibale,
   });
 });
 
@@ -46,210 +39,77 @@ const doctorList = asyncHandler(async (req, res, next) => {
 const loginDoctor = asyncHandler(async (req, res, next) => {
   const { email, password } = req.body;
 
-  const comparPassword = await bcrypt.compare(password, doctor.password);
+  const token = await doctorService.loginDoctor(email, password);
 
-  if (comparPassword) {
-    const token = jwt.sign({ id: doctor._id }, process.env.JWT_SECRET, {
-      expiresIn: "7d",
-    });
-    res.json({ success: true, token });
-  } else {
-    next(new AppError("ربما البريد الاكلتروني أو كلة السر خطاء", 404));
-  }
+  res.status(201).json({ success: true, message: "Login successfully", token });
 });
 // api to get doctor appointments
 const doctorAppointments = asyncHandler(async (req, res, next) => {
   const { docId } = req.body;
 
-  // هشوف الدكاترة موجوده جوه caching  ولا لا
-  const chachedDoctors = await client.get(`doctor-appointments-${docId}`);
-
-  if (chachedDoctors) {
-    console.log("من الكاش");
-    return res.json({
-      success: true,
-      appointments: JSON.parse(chachedDoctors),
-    });
-  }
-  const appointments = await appointmentModel.find({ docId });
-  await client.setEx(
-    `doctor-appointments-${docId}`,
-    120,
-    JSON.stringify(appointments),
-  );
+  const doctorAppointments =
+    await appointmentService.getDoctorAppointments(docId);
 
   res.status(200).json({
     success: true,
     message: "All Doctor Appointments ",
-    appointments,
+    doctorAppointments,
   });
 });
 
 const appointmentCompleted = asyncHandler(async (req, res, next) => {
   const { docId, appointmentId } = req.body;
 
-  const appointmentData = await appointmentModel.findById(appointmentId);
-  if (appointmentData && appointmentData.docId.equals(docId)) {
-    await appointmentModel.findByIdAndUpdate(appointmentId, {
-      isCompleted: true,
-    });
-    const { docId, slotDate, slotTime } = appointmentData;
-    const doctorData = await doctorModel.findById(docId);
-    let slots_booked = doctorData.slots_booked;
+  await appointmentService.completeAppointment(docId, appointmentId);
 
-    slots_booked[slotDate] = slots_booked[slotDate].filter(
-      (e) => e !== slotTime,
-    );
-
-    await doctorModel.findByIdAndUpdate(docId, { slots_booked }, { new: true });
-
-    // delete redis cache
-    await client.del(`doctor-dashboard-${docId}`);
-    await client.del(`doctor-appointments-${docId}`);
-
-    res.status(200).json({
-      success: true,
-      message: `أكتمل الكشف من قبل الطبيب ${appointmentData.docData.name}`,
-    });
-  } else {
-    return next(new AppError("لم تنجح العملية", 400));
-  }
+  res.status(200).json({
+    success: true,
+    message: `أكتمل كشف من قبل الطبيب`,
+  });
 });
 
 const appointmentCancel = asyncHandler(async (req, res, next) => {
   const { docId, appointmentId } = req.body;
 
-  const appointmentData = await appointmentModel.findById(appointmentId);
-  if (appointmentData && appointmentData.docId.equals(docId)) {
-    await appointmentModel.findByIdAndUpdate(appointmentId, {
-      cancelled: true,
-    });
+  await appointmentService.cancelAppointment(docId, appointmentId);
 
-    const { docId, slotDate, slotTime } = appointmentData;
-    const doctorData = await doctorModel.findById(docId);
-    let slots_booked = doctorData.slots_booked;
-
-    slots_booked[slotDate] = slots_booked[slotDate].filter(
-      (e) => e !== slotTime,
-    );
-
-    await doctorModel.findByIdAndUpdate(docId, { slots_booked });
-
-    res.status(200).json({
-      success: true,
-      message: `تم ألغاء الكشف من قبل ال ${appointmentData.docData.name}`,
-    });
-    await client.del(`doctor-appointments-${docId}`);
-    await client.del(`doctor-dashboard-${docId}`);
-  } else {
-    return next(new AppError("لم تنجح العملية"));
-  }
+  res.status(200).json({
+    success: true,
+    message: `تم ألغاء الكشف من قبل ال ${appointmentData.docData.name}`,
+  });
 });
 
 // deleted all slots booked from doctor
 const deleteSlotsBooked = asyncHandler(async (req, res, next) => {
   const docId = req.docId;
 
-  const docSlots = await doctorModel.findByIdAndUpdate(
-    docId,
-    {
-      slots_booked: {},
-    },
-    { new: true },
-  );
+  const docSlots = await doctorService.clearDoctorSlots(docId);
 
-  if (docSlots) {
-    return res
-      .status(200)
-      .json({ success: true, message: " تمت العملية يانجم النجوم", docSlots });
-  }
+  return res
+    .status(200)
+    .json({ success: true, message: " تمت العملية يانجم النجوم", docSlots });
 });
 
 // doctor api ------> dashboard ---- with cached
 const doctorDashboard = asyncHandler(async (req, res, next) => {
   const { docId } = req.body;
 
-  const chachedDoctorDashbord = await client.get(`doctor-dashboard-${docId}`);
-  if (chachedDoctorDashbord) {
-    console.log("بيانات لوحة التحكم من الكاش الخاصة بالطبيب");
-    return res.json({
-      success: true,
-      dashData: JSON.parse(chachedDoctorDashbord),
-    });
-  }
-
-  const appointments = await appointmentModel
-    .find({ docId })
-    .select("amount isCompleted payment userId");
-  const consultations = await consultationModel.find({ docId });
-
-  let earnings_appointment = 0;
-  appointments.forEach((item) => {
-    //map
-    if (item.isCompleted || item.payment) {
-      earnings_appointment += item.amount;
-    }
-  });
-  let earnings_consultation = 0;
-
-  consultations.forEach((item) => {
-    //map
-    if (item.isCompleted) {
-      earnings_consultation += item.amount;
-    }
-  });
-
-  const patients = [];
-  appointments.map((items) => {
-    if (!patients.includes(items.userId)) {
-      patients.push(items.userId);
-    }
-  });
-
-  const patients_Consultation = [];
-  consultations.map((items) => {
-    if (!patients_Consultation.includes(items.userId)) {
-      patients_Consultation.push(items.userId);
-    }
-  });
-
-  const dashData = {
-    earnings_appointment,
-    earnings_consultation,
-    patients_Consultation: patients_Consultation.length,
-    appointments: appointments.length,
-    patients: patients.length,
-    latestAppointments: appointments.reverse().slice(0, 3),
-    latestConsultation: consultations.reverse().slice(0, 3),
-  };
-
-  await client.setEx(
-    `doctor-dashboard-${docId}`,
-    120,
-    JSON.stringify(dashData),
-  );
+  const doctorDashboard = await doctorService.getDoctorDashboard(docId);
 
   res
     .status(200)
-    .json({ success: true, message: "Doctor dashbord info", dashData });
+    .json({ success: true, message: "Doctor Dashboard Data", doctorDashboard });
 });
 
 // api to get doctor info to -------> dashboard ---- with cached
 const doctorProfile = asyncHandler(async (req, res, next) => {
   const { docId } = req.body;
 
-  const chachedDoctorProfile = await client.get(`doctor-data-${docId}`);
-  if (chachedDoctorProfile) {
-    console.log("بيانات الدكتور من الكاش");
+  const doctor = await doctorService.getDoctorProfile(docId);
 
-    return res.json({
-      success: true,
-      docInfo: JSON.parse(chachedDoctorProfile),
-    });
-  }
-  const docInfo = await doctorModel.findById(docId).select("-password");
-  await client.setEx(`doctor-data-${docId}`, 120, JSON.stringify(docInfo));
-  res.json({ success: true, message: "Doctor profile information", docInfo });
+  res
+    .status(200)
+    .json({ success: true, message: "Doctor profile information", doctor });
 });
 
 // api to update doctor info to -------> dashboard
@@ -263,25 +123,21 @@ const doctorProfileUpdate = asyncHandler(async (req, res) => {
     start_booked,
     consultation_fees,
   } = req.body;
-  const docInfo = await doctorModel.findByIdAndUpdate(
-    docId,
-    {
-      fees,
-      consultation_fees,
-      address,
-      avalibale,
-      phone,
-      start_booked,
-    },
-    { new: true },
-  );
 
-  await client.del(`doctor-data-${docId}`);
+  const data = {
+    fees,
+    address,
+    avalibale,
+    phone,
+    start_booked,
+    consultation_fees,
+  };
 
+  const doctor = await doctorService.updateDoctorProfile(docId, data);
   res.json({
     success: true,
-    message: ` تم تحديث الحساب الشخصي لي   ${docInfo.name}`,
-    docInfo,
+    message: ` تم تحديث الحساب الشخصي لي   ${doctor.name}`,
+    doctor,
   });
 });
 
@@ -296,30 +152,6 @@ const addReport = asyncHandler(async (req, res, next) => {
     notes,
     nextVisit,
   } = req.body;
-
-  if (!complaint || !examination || !diagnosis || !treatment) {
-    return next(new AppError("All required fields must be provided", 400));
-  }
-
-  const appointment = await appointmentModel.findById(appointmentId);
-  if (!appointment) {
-    return next(new AppError("Appointment not found", 404));
-  }
-
-  if (!appointment.isCompleted || appointment.cancelled) {
-    return next(
-      new AppError("لايمكن كتابة تقرير لمريض ألغى الكشف أو لم يكمل الكشف", 404),
-    );
-  }
-
-  const todayVisit = new Date(appointment.slotDate);
-  const newNextVisit = new Date(nextVisit);
-
-  if (newNextVisit <= todayVisit) {
-    return next(
-      new AppError("لا يجوز اختيار موعد قبل يوم الكشف أو في نفس اليوم", 404),
-    );
-  }
 
   const reportData = {
     complaint,
@@ -336,16 +168,12 @@ const addReport = asyncHandler(async (req, res, next) => {
     appointmentId,
   };
 
-  const newReport = new reportModel(reportData);
-  await newReport.save();
-
-  await client.del(`all-report-${docId}`);
-  await client.del(`user-report-${userId}-${docId}`);
+  const createReport = await reportService.createReport(reportData);
 
   res.status(201).json({
     success: true,
     message: "Report added successfully",
-    report: newReport,
+    report: createReport,
   });
   sendMedicalReportEmail(appointment.userData.email, reportData);
 });
@@ -362,55 +190,34 @@ const editReport = asyncHandler(async (req, res, next) => {
     nextVisit,
   } = req.body;
 
-  const report = await reportModel.findById(reportId);
+  const data = {
+    complaint,
+    examination,
+    diagnosis,
+    treatment,
+    notes,
+    nextVisit,
+  };
 
-  if (report) {
-    await reportModel.findByIdAndUpdate(
-      reportId,
-      {
-        complaint,
-        examination,
-        diagnosis,
-        treatment,
-        notes,
-        nextVisit,
-      },
-      { new: true },
-    );
+  const reportUpdate = await reportService.updateReport(reportId, data);
 
-    await client.del(`all-report-${docId}`);
-    await client.del(`user-report-${userId}-${docId}`);
-
-    res.status(200).json({
-      success: true,
-      message: ` تم تحديث التقرير بنجاح لي     ${report.userData.name}`,
-    });
-  } else {
-    return next(new AppError("هذا التقرير غير موجود", 404));
-  }
+  res.status(200).json({
+    success: true,
+    message: ` تم تحديث التقرير بنجاح لي     ${reportUpdate.userData.name}`,
+    reportUpdate,
+  });
 });
 
 //api get all report to doctor dashboard ---- with cached
 const allReport = asyncHandler(async (req, res, next) => {
   const docId = req.docId;
-  const chachedAllReport = await client.get(`all-report-${docId}`);
-  if (chachedAllReport) {
-    console.log("من الكاش يااااامان");
 
-    return res.status(200).json({
-      success: true,
-      message: "All report with doctor from chache",
-      reports: JSON.parse(chachedAllReport),
-    });
-  }
+  const doctorReport = await reportService.getDoctorReports(docId);
 
-  const reports = await reportModel.find({ docId });
-
-  await client.setEx(`all-report-${docId}`, 120, JSON.stringify(reports));
   res.json({
     success: true,
     message: "All Reports for doctor dashbord",
-    reports,
+    doctorReport,
   });
 });
 
@@ -419,50 +226,29 @@ const getUserReportWithDoctor = asyncHandler(async (req, res, next) => {
   const { userId } = req.body;
   const docId = req.docId;
 
-  const chachedUserReportsWithDoctor = await client.get(
-    `user-report-${userId}-${docId}`,
+  // const doctorReport = await reportService.getDoctorReports(docId);
+  const userReportWithDoctor = await reportService.getUserReportsWithDoctor(
+    docId,
+    userId,
   );
 
-  if (chachedUserReportsWithDoctor) {
-    return res.status(200).json({
-      success: true,
-      message: "User report with doctor form chach",
-      userReport: JSON.parse(chachedUserReportsWithDoctor),
-    });
-  }
-  const userReport = await reportModel.find({ userId, docId });
-
-  if (userReport.length === 0) {
-    return res.status(200).json({ success: true, message: "لا يوجد تقارير" });
-  }
-
-  await client.setEx(
-    `user-report-${userId}-${docId}`,
-    120,
-    JSON.stringify(userReport),
-  );
-  res
-    .status(200)
-    .json({ success: true, message: "Get all user report with ", userReport });
+  res.status(200).json({
+    success: true,
+    message: "Get all user report with ",
+    userReportWithDoctor,
+  });
 });
 
-// api controller to delete user report from doctor dashbord -----------------find see it
+// api controller to delete user report from doctor dashboard -----------------find see it
 const deletedReport = asyncHandler(async (req, res, next) => {
   const { reportId } = req.body;
 
-  const report = await reportModel.findById(reportId);
+  await reportService.deleteReport(reportId);
 
-  if (report) {
-    await reportModel.findByIdAndDelete(reportId);
-    await client.del(`all-report-${docId}`);
-    await client.del(`user-report-${userId}-${docId}`);
-    res.status(200).json({ success: true, message: "تم حذف التقرير بنجاح" });
-  } else {
-    res.status(200).json({ success: true, message: "هذا التقرير غير متاح" });
-  }
+  res.status(200).json({ success: true, message: "تم حذف التقرير بنجاح" });
 });
 
-//api to search about user from doctor dachbord
+//api to search about user from doctor dashboard
 
 const searchUser = asyncHandler(async (req, res, next) => {
   const { q } = req.body;
