@@ -13,6 +13,7 @@ import asyncHandler from "../utils/asyncHandler.js";
 import * as doctorService from "../services/doctorService.js";
 import * as appointmentService from "../services/appointmentService.js";
 import * as reportService from "../services/reportService.js";
+import * as consultationService from "../services/consultationService.js";
 
 const changeAvailable = asyncHandler(async (req, res, next) => {
   const { docId } = req.body;
@@ -329,68 +330,25 @@ const useDetails = asyncHandler(async (req, res, next) => {
 // create consultation with doctor when the appointment is completed
 const createConsaltation = asyncHandler(async (req, res, next) => {
   const { userId, consultDay, notes, appointmentId, amount } = req.body;
+
   const docId = req.docId;
 
-  if (!consultDay) {
-    return res
-      .status(404)
-      .json({ success: false, message: "برجاء اختيار اليوم" });
-  }
-
-  // هات الـ appointment اللي الدكتور بعته
-  const appointmentData = await appointmentModel.findById(appointmentId);
-
-  if (!appointmentData) {
-    return res.status(404).json({ success: false, message: "الحجز غير موجود" });
-  }
-
-  // تأكد إن الحجز ده يخص نفس المريض والدكتور
-  if (
-    appointmentData.userId.toString() !== userId ||
-    appointmentData.docId.toString() !== docId
-  ) {
-    return res.status(404).json({
-      success: false,
-      message: "هذا الحجز لا يخص هذا المريض",
-    });
-  }
-
-  // تأكد إن الكشف فعلاً اتعمل
-  if (!appointmentData.isCompleted) {
-    return res.json({
-      success: false,
-      message: "هذا الحجز لم يتم الكشف فيه بعد",
-    });
-  }
-
-  // تأكد إن يوم الاستشارة بعد يوم الحجز
-  // لازم نحول slotDate لـ Date
-  const [day, month, year] = appointmentData.slotDate.split("-");
-  const appointmentDate = new Date(`${year}-${month}-${day}`); // عكسنا هنا ترتيب التاريخ
-  const consultDate = new Date(consultDay);
-
-  if (consultDate <= appointmentDate) {
-    return res.json({
-      success: false,
-      message: "ميعاد الاستشارة لازم يكون بعد ميعاد الكشف",
-    });
-  }
-
-  // لو كل الشروط تمام
-  const newConsaltation = new consultationModel({
+  const data = {
     userId,
     docId,
     consultDay,
     notes,
     appointmentId,
     amount,
-    appointmentData: appointmentData,
-    userData: appointmentData.userData,
-    docData: appointmentData.docData,
-  });
+  };
 
-  await newConsaltation.save();
-  res.status(200).json({ success: true, message: "تم إنشاء الاستشارة بنجاح" });
+  const consultation = await consultationService.createConsultation(data);
+
+  res.status(201).json({
+    success: true,
+    message: "تم إنشاء الاستشارة بنجاح",
+    consultation,
+  });
 });
 
 // completed consultation with doctor

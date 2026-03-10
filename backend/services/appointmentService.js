@@ -3,8 +3,6 @@ import * as doctorRepository from "../repositories/doctorRepository.js";
 import client from "../config/redisClient.js";
 import AppError from "../utils/AppErrors.js";
 
-// getUserAppointments
-
 export const getDoctorAppointments = async (docId) => {
   const cachedDoctors = await client.get(`doctor-appointments-${docId}`);
 
@@ -88,4 +86,15 @@ export const getUserAppointments = async (userId) => {
   }
 
   return userAppointments;
+};
+
+export const getAppointmentWithId = async (appointmentId) => {
+  const appointment =
+    await appointmentRepository.findAppointmentById(appointmentId);
+
+  if (!appointmentId) {
+    throw new AppError("Appointment not found", 404);
+  }
+
+  return appointment;
 };

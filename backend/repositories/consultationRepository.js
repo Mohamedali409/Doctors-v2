@@ -1,4 +1,5 @@
 import consultationModel from "../models/consultationModel";
+import AppError from "../utils/AppErrors";
 
 export const createConsultation = (data) => {
   return consultationModel.create(data);
